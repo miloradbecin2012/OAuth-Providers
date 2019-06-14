@@ -2,13 +2,16 @@ require('dotenv').config();
 
 var express = require('express');
 var passport = require('passport');
+var refresh = require('passport-oauth2-refresh')
+var localStorage = require('localStorage');
 
 var GoogleStrategy = require('passport-google-oauth20').Strategy;
 
-const FACEBOOK_CLIENT_ID = '417588365502883';
-const FACEBOOK_CLIENT_SECRET = ' c7d55c19253994419234274ab335650e';
+const axios = require('axios');
+const querystring = require('querystring');
 
-
+const CLIENT_ID = '574524735992-8a4fd7iseopo8dv9nkmi6js7ol4s16o4.apps.googleusercontent.com';
+const CLIENT_SECRET = 'G59Sf8Avza-40S_w6bf3oxSt';
 
 
 // Configure the Facebook strategy for use by Passport.
@@ -19,20 +22,34 @@ const FACEBOOK_CLIENT_SECRET = ' c7d55c19253994419234274ab335650e';
 // with a user object, which will be set at `req.user` in route handlers after
 // authentication.
 passport.use(new GoogleStrategy({
-  clientID: '574524735992-8a4fd7iseopo8dv9nkmi6js7ol4s16o4.apps.googleusercontent.com',
-  clientSecret: 'G59Sf8Avza-40S_w6bf3oxSt',
+  clientID: CLIENT_ID,
+  clientSecret: CLIENT_SECRET,
   callbackURL: "http://localhost:8080/auth/google/callback"
 },
   function (accessToken, refreshToken, profile, cb) {
     console.log('accessToken======', accessToken)
     console.log('refreshToken======', refreshToken)
     console.log('profile======', profile)
+
+    localStorage.setItem('accessToken', JSON.stringify(accessToken));
+    localStorage.setItem('refreshToken', JSON.stringify(refreshToken));
+
     return cb(null, profile);
     // User.findOrCreate({ googleId: profile.id }, function (err, user) {
     //   return cb(err, user);
     // });
   }
 ));
+
+// refresh.use(new GoogleStrategy({
+//   clientID: CLIENT_ID,
+//   clientSecret: CLIENT_SECRET,
+//   callbackURL: "http://localhost:8080/auth/google/callback"
+// },
+//   function (accessToken, refreshToken, profile, cb) {
+//     return cb(null, profile);
+//   }
+// ));
 
 
 
@@ -87,9 +104,9 @@ app.get('/login',
 
 app.get('/auth/google',
   passport.authenticate('google', { 
-    scope: ['profile'],
     accessType: 'offline',
     prompt: 'consent',
+    scope: ['profile'],
   }));
 
 app.get('/auth/google/callback',
@@ -103,7 +120,54 @@ app.get('/auth/google/callback',
 app.get('/profile',
   require('connect-ensure-login').ensureLoggedIn(),
   function (req, res) {
-    res.render('profile', { user: req.user });
+    var accessTokenObj = getNewAccessToken(CLIENT_ID, CLIENT_SECRET);
+    res.render('profile', { user: req.user, accessTokenObj: accessTokenObj });
   });
+
+function renewAccessToken() {
+  var oldRefreshToken = localStorage.getItem('refreshToken');
+  console.log('oldRefreshToken=====>', oldRefreshToken);
+
+  refresh.requestNewAccessToken('google', oldRefreshToken, function(err, accessToken, refreshToken) {
+    // You have a new access token, store it in the user object,
+    // or use it to make a new request.
+    // `refreshToken` may or may not exist, depending on the strategy you are using.
+    // You probably don't need it anyway, as according to the OAuth 2.0 spec,
+    // it should be the same as the initial refresh token.
+    if (!err) {
+      console.log('new oldRefreshToken ===============================>', oldRefreshToken)
+      console.log('new AccessToken ===============================>', accessToken)
+      console.log('new refreshToken ===============================>', refreshToken)
+    } else {
+      console.log('renew accesstoken error ===================================>', err)
+    }
+  
+  });
+}
+
+async function getNewAccessToken(googleClientID, googleClientSecret) {
+  // var oldRefreshToken = localStorage.getItem('refreshToken');
+  var oldRefreshToken = '1/zQU7fBGf-WRGRmLtvtLFpT5eIP197tZ2MjRdYDqr7F_UEqZ-Tu0b4bFJ386rBr1Z';
+  console.log('oldRefreshToken ========>', oldRefreshToken)
+    try {
+      const accessTokenObj = await axios.post(
+        'https://www.googleapis.com/oauth2/v4/token',
+        querystring.stringify({
+          // refresh_token: oldRefreshToken,
+          refresh_token: oldRefreshToken,
+          client_id: googleClientID,
+          client_secret: googleClientSecret,
+          grant_type: 'refresh_token'
+        })
+      );
+      console.log('accessTokenObj =============================>', accessTokenObj.data)
+      // return accessTokenObj.data.access_token;
+      return accessTokenObj;
+    } catch (err) {
+      console.log('err *******************============**************', err);
+    }
+}
+
+
 
 app.listen(process.env['PORT'] || 8080);

@@ -6,3 +6,10 @@ Name: <%= user.displayName %><br/>
 Email: <%= user.emails[0].value %><br/>
 <% } %>
 </p>
+<p>
+    <% if (user.emails) { %>
+        new_access_token: <%= accessTokenObj.access_token %><br/>
+        expires_in: <%= accessTokenObj.expires_in %><br/>
+        id_token: <%= accessTokenObj.id_token %><br/>
+    <% } %>
+</p>

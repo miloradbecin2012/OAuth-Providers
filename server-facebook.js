@@ -5,7 +5,7 @@ var passport = require('passport');
 var Strategy = require('passport-facebook').Strategy;
 
 const FACEBOOK_CLIENT_ID = '417588365502883';
-const FACEBOOK_CLIENT_SECRET = ' c7d55c19253994419234274ab335650e';
+const FACEBOOK_CLIENT_SECRET = 'c7d55c19253994419234274ab335650e';
 
 
 // Configure the Facebook strategy for use by Passport.
@@ -84,18 +84,18 @@ app.get('/login',
   });
 
 app.get('/login/facebook',
-  passport.authenticate('facebook'));
+  passport.authenticate('facebook', {
+    accessType: 'offline',
+    prompt: 'consent',
+    scope: ['profile'],
+  }));
 
 app.get('/auth/facebook/callback', 
   passport.authenticate('facebook', { failureRedirect: '/login' }),
   function(req, res) {
     res.redirect('/');
   });
-// app.get('/return', 
-//   passport.authenticate('facebook', { failureRedirect: '/login' }),
-//   function(req, res) {
-//     res.redirect('/');
-//   });
+
 
 app.get('/profile',
   require('connect-ensure-login').ensureLoggedIn(),
